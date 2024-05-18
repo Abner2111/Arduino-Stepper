@@ -143,20 +143,24 @@ void loop(){
   else if(digitalRead(calibrated)){
     
     for (int i = 0; i<=stepsPerRotation*3.5;i++){
-        step(1, 0);
-        negstep(1, 1);
         if (!digitalRead(calibrated)){
           break;
         }
+        negstep(1, 1);
+        step(1, 0);
+        
+        
     }
     delay(1000);
 
     for (int i = 0; i<=stepsPerRotation*3.5;i++){
-        negstep(1, 0);
-        step(1, 1);
         if (!digitalRead(calibrated)){
           break;
         }
+        step(1, 1);
+        negstep(1, 0);
+        
+        
     }
     delay(1000);
   } else {
