@@ -1,28 +1,50 @@
-int IN1z = 13;
-int IN2z = 12;
-int IN3z = 11;
-int IN4z = 10;
+const int IN1z = 13;
+const int IN2z = 12;
+const int IN3z = 11;
+const int IN4z = 10;
 
-int IN1y = 9;
-int IN2y = 8;
-int IN3y = 7;
-int IN4y = 6;
+const int IN1y = 9;
+const int IN2y = 8;
+const int IN3y = 7;
+const int IN4y = 6;
 
-int IN1x = 5;
-int IN2x = 4;
-int IN3x = 3;
-int IN4x = 2;
+const int IN1x = 5;
+const int IN2x = 4;
+const int IN3x = 3;
+const int IN4x = 2;
 
-int calibrated = 18;
-int right      = 19;
-int up         = 20;
-int left       = 21;
-int down       = 22;
+//analog mapping for Leonardo
+// const int calibrated = 18;
+// const int right      = 19;
+// const int up         = 20;
+// const int left       = 21;
+// const int down       = 22;
+
+//analog mapping for UNO
+const int calibrated = 14;
+const int right      = 15;
+const int up         = 16;
+const int left       = 17;
+const int down       = 18;
+
 
 const int stepsPerRotation = 512;
 const int stepperdelay = 1000;
 
+
+const int width = stepsPerRotation*3.5;
+const int height = (stepsPerRotation*3.5)*0.9;
+
 int prevCalibrated = 0;
+
+const int bufferSize = 6;
+float buffer[bufferSize];
+String inputString = "";
+
+int x = 0;
+int y = height;
+int z = 0;
+
 void write(int a, int b, int c, int d, int coord){
   if (coord == 0){
     digitalWrite(IN1x,a);
@@ -105,6 +127,73 @@ void negstep(int number_of_steps, int coord){
   while(i<number_of_steps){
     negonestep(coord);
     i++;
+    if(!digitalRead(calibrated)){
+      break;
+    }
+  }
+}
+
+//
+void moveUp(int n){
+  for (int i =0; i<n;i++){
+    step(1,1);
+    y++;
+    if(!digitalRead(calibrated)){
+      break;
+    }
+  }
+  
+}
+
+void moveDown(int n){
+  for (int i =0; i<n;i++){
+    negstep(1,1);
+    y--;
+    if(!digitalRead(calibrated)){
+      break;
+    }
+  }
+  
+}
+
+void moveRight(int n){
+  for (int i =0; i<n;i++){
+    step(1,0);
+    x++;
+    if(!digitalRead(calibrated)){
+      break;
+    }
+  }
+  
+}
+
+void moveLeft(int n){
+  for (int i =0; i<n;i++){
+    negstep(1,0);
+    x--;
+    if(!digitalRead(calibrated)){
+      break;
+    }
+  }
+
+  
+}
+
+void moveLift(int n){
+  for (int i =0; i<n;i++){
+    negstep(1,2);
+    if(!digitalRead(calibrated)){
+      break;
+    }
+  }
+}
+
+void moveLower(int n){
+  for (int i =0; i<n;i++){
+    step(1,2);
+    if(!digitalRead(calibrated)){
+      break;
+    }
   }
 }
 void setup(){
@@ -129,41 +218,82 @@ void setup(){
   pinMode(up, OUTPUT);
   pinMode(down, OUTPUT);
 
+  Serial.begin(9600);
+  for(int i=0;i<bufferSize;i++){
+    buffer[i] = 0.0;
+  }
+  
+  Serial.println("Calibration in progress...");
   delay(500);
 }
 
 void loop(){
+  if(Serial.available()>0){
+    //buffer fill and shift
+    char inChar = (char)Serial.read();
+
+    inputString += inChar;
+
+    if(inChar == ','){
+      float num = inputString.substring(0,inputString.length()-1).toFloat();
+      inputString = "";
+
+      for(int i = bufferSize -1; i > 0; i--){
+        buffer[i] = buffer[i-1];
+      }
+
+      buffer[0] = num;
+
+      Serial.print("Buffer: ");
+      for(int i = 0; i < bufferSize; i++) {
+        Serial.print(buffer[i]);
+        Serial.print(" ");
+      }
+      Serial.println();
+    }
+
+  }
   if (prevCalibrated != digitalRead(calibrated)){
     if(digitalRead(calibrated)){
-      negstep(stepsPerRotation/6, 2);
-      step(stepsPerRotation/6+5, 2);
+      Serial.println("Calibrated!");
+      x = 0;
+      y = height;
+      moveLift(stepsPerRotation/6);
+      //negstep(stepsPerRotation/6, 2);
+      moveDown(height);
+      moveLower(stepsPerRotation/6+7);
+      z = stepsPerRotation/6+7;
+      //step(stepsPerRotation/6+7, 2);
+    } else {
+      Serial.println("Calibration in progress...");
     }
     prevCalibrated = digitalRead(calibrated);
   }
   else if(digitalRead(calibrated)){
-    
-    for (int i = 0; i<=stepsPerRotation*3.5;i++){
-        if (!digitalRead(calibrated)){
-          break;
+    if(buffer[0] == 255.0){
+      Serial.println("Plotting!");
+      for (int i = 0; i < 5; i++){
+        int y_displacement = abs(buffer[i+1]*height - y);
+        if(y<buffer[i+1]*height){
+          Serial.println("Up");
+          moveUp(y_displacement);
+        } else {
+          Serial.println("Down");
+          moveDown(y_displacement);
         }
-        negstep(1, 1);
-        step(1, 0);
-        
-        
+        moveRight(width/5);
+        Serial.println("Right");
+      }
+      moveDown(y);
+      moveLift(z);
+      moveLeft(x);
+      moveLower(z);
+      for(int i=0;i<bufferSize;i++){
+        buffer[i] = 0.0;
+      }
     }
-    delay(1000);
-
-    for (int i = 0; i<=stepsPerRotation*3.5;i++){
-        if (!digitalRead(calibrated)){
-          break;
-        }
-        step(1, 1);
-        negstep(1, 0);
-        
-        
-    }
-    delay(1000);
   } else {
+   
     digitalWrite(IN1z,0);
     digitalWrite(IN2z,0);
     digitalWrite(IN3z,0);
