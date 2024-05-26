@@ -262,7 +262,7 @@ void loop(){
       //negstep(stepsPerRotation/6, 2);
       moveDown(height);
       moveLower(stepsPerRotation/6+7);
-      z = stepsPerRotation/6+7;
+      z = stepsPerRotation/6+9;
       //step(stepsPerRotation/6+7, 2);
     } else {
       Serial.println("Calibration in progress...");
