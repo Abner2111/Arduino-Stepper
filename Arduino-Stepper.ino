@@ -241,6 +241,9 @@ void setup(){
   for(int i=0;i<bufferSize;i++){
     buffer[i] = 0.0;
   }
+  while(digitalRead(calibrated)){
+    Serial.print(".");
+  }
   
   Serial.println("Calibration in progress...");
   delay(500);
@@ -280,9 +283,9 @@ void loop(){
       Serial.println("Calibrated!");
       x = 0;
       y = height;
-      moveLift(stepsPerRotation/6);
+      moveLift(stepsPerRotation/10);
  
-      z = stepsPerRotation/6+5;
+      z = stepsPerRotation/10;
     } else {
       Serial.println("Calibration in progress...");
     }
@@ -311,6 +314,7 @@ void loop(){
       moveLift(z);
       moveUp(abs(y-height));
       moveLeft(x);
+      moveLower(z);
       for(int i=0;i<bufferSize;i++){
         buffer[i] = 0.0;
       }
