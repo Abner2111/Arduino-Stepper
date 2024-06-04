@@ -33,7 +33,7 @@ const int stepperdelay = 1000;
 
 
 const int width = stepsPerRotation*3.5;
-const int height = (stepsPerRotation*3.5)*0.9;
+const int height = (stepsPerRotation*3.5)*0.8;
 
 int prevCalibrated = 0;
 
@@ -41,6 +41,8 @@ const int bufferSize = 6;
 float buffer[bufferSize];
 String inputString = "";
 
+int prevReady = 0;
+int ready     = 0;
 int x = 0;
 int y = height;
 int z = 0;
@@ -136,8 +138,12 @@ void negstep(int number_of_steps, int coord){
 //
 void moveUp(int n){
   for (int i =0; i<n;i++){
+    if (y>=height & digitalRead(calibrated)){
+      return;
+    }
     step(1,1);
     y++;
+    
     if(!digitalRead(calibrated)){
       break;
     }
@@ -147,8 +153,13 @@ void moveUp(int n){
 
 void moveDown(int n){
   for (int i =0; i<n;i++){
+    if(y<=0 & digitalRead(calibrated)){
+      return;
+      
+    }
     negstep(1,1);
     y--;
+    
     if(!digitalRead(calibrated)){
       break;
     }
@@ -158,8 +169,12 @@ void moveDown(int n){
 
 void moveRight(int n){
   for (int i =0; i<n;i++){
+    if(x>=width & digitalRead(calibrated)){
+      return;
+    }
     step(1,0);
     x++;
+    
     if(!digitalRead(calibrated)){
       break;
     }
@@ -169,8 +184,12 @@ void moveRight(int n){
 
 void moveLeft(int n){
   for (int i =0; i<n;i++){
+    if(x<=0 & digitalRead(calibrated)){
+      return;
+    }
     negstep(1,0);
     x--;
+    
     if(!digitalRead(calibrated)){
       break;
     }
@@ -229,6 +248,7 @@ void setup(){
 
 void loop(){
   if(Serial.available()>0){
+    //DATA RECEIVING MODE
     //buffer fill and shift
     char inChar = (char)Serial.read();
 
@@ -254,58 +274,68 @@ void loop(){
 
   }
   if (prevCalibrated != digitalRead(calibrated)){
+    //CALIBRATION MODE CHANGE
+    ready = 0;
     if(digitalRead(calibrated)){
       Serial.println("Calibrated!");
       x = 0;
       y = height;
       moveLift(stepsPerRotation/6);
-      //negstep(stepsPerRotation/6, 2);
-      moveDown(height);
-      moveLower(stepsPerRotation/6+7);
-      z = stepsPerRotation/6+9;
-      //step(stepsPerRotation/6+7, 2);
+ 
+      z = stepsPerRotation/6+5;
     } else {
       Serial.println("Calibration in progress...");
     }
     prevCalibrated = digitalRead(calibrated);
   }
   else if(digitalRead(calibrated)){
+    //PLOTTING MODE
     if(buffer[0] == 255.0){
+      ready = 0;
       Serial.println("Plotting!");
+      moveDown(height);
+      moveLower(z);
       for (int i = 0; i < 5; i++){
         int y_displacement = abs(buffer[i+1]*height - y);
         if(y<buffer[i+1]*height){
-          Serial.println("Up");
           moveUp(y_displacement);
         } else {
-          Serial.println("Down");
+          
           moveDown(y_displacement);
         }
         moveRight(width/5);
-        Serial.println("Right");
+        
+        
       }
-      moveDown(y);
+      moveDown(height);
       moveLift(z);
+      moveUp(abs(y-height));
       moveLeft(x);
-      moveLower(z);
       for(int i=0;i<bufferSize;i++){
         buffer[i] = 0.0;
       }
+    } else {
+      ready = 1;
+      if (prevReady != ready){
+        Serial.println("Ready to plot!");
+      }
     }
+    prevReady = ready;
   } else {
-   
+    //CALIBRATION MODE
+    ready = 0;
     digitalWrite(IN1z,0);
     digitalWrite(IN2z,0);
     digitalWrite(IN3z,0);
     digitalWrite(IN4z,0);
     if(digitalRead(up)){
-      step(1,1);
+      moveUp(1);
     } else if(digitalRead(down)) {
-      negstep(1,1);
+      moveDown(1);
     } if(digitalRead(right)) {
-      step(1,0);
+      moveRight(1);
     } else if(digitalRead(left)) {
-      negstep(1,0);
+      moveLeft(1);
     }
   }
   
